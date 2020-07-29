@@ -28,14 +28,14 @@ import java.util.List;
 @EnableAutoConfiguration
 public class SpringBootTest1 {
 
-    private Logger logger = LoggerFactory.getLogger(SpringBootTest1.class) ;
+    private Logger logger = LoggerFactory.getLogger(SpringBootTest1.class);
 
     @Autowired
-    private Github github ;
+    private Github github;
 
     @Test
-    public void test1(){
-        List<GitHubRes> contributors = github.contributors("crossoverJie", "feign-plus");
+    public void test1() {
+        List<GitHubRes> contributors = github.feignContributors("crossoverJie", "feign-plus");
         logger.info("contributors={}", new Gson().toJson(contributors));
     }
 }

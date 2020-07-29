@@ -81,16 +81,16 @@ public class FeignPlusClientScanner extends ClassPathBeanDefinitionScanner {
     }
 
     private String buildUrl(MergedAnnotation<FeignPlusClient> feignPlus, MergedAnnotation<RequestMapping> requestMapping) {
-        String url = feignPlus.getString("url");
+        String url = "";
+        if (feignPlus.isPresent()) {
+            url = feignPlus.getString("url");
+        }
 
         if (requestMapping.isPresent()) {
             String[] value = (String[]) requestMapping.getValue("value").get();
             url += value[0];
-
         }
-
         return url;
-
     }
 
     @Override

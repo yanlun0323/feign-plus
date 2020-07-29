@@ -1,16 +1,20 @@
 package top.crossoverjie.feign.plus.springboot;
 
 import feign.Client;
-import feign.http2client.Http2Client;
+import feign.Contract;
 import okhttp3.ConnectionPool;
 import okhttp3.OkHttpClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.convert.ConversionService;
+import top.crossoverjie.feign.plus.annotation.AnnotatedParameterProcessor;
+import top.crossoverjie.feign.plus.support.SpringMvcContract;
 
-import java.net.http.HttpClient;
-import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,32 +28,47 @@ import java.util.concurrent.TimeUnit;
 @EnableConfigurationProperties(FeignPlusConfigurationProperties.class)
 public class FeignPlusAutoConfiguration {
 
-    private FeignPlusConfigurationProperties feignPlusConfigurationProperties ;
+    @Autowired(required = false)
+    private List<AnnotatedParameterProcessor> parameterProcessors = new ArrayList<>();
+
+
+    private FeignPlusConfigurationProperties feignPlusConfigurationProperties;
 
     public FeignPlusAutoConfiguration(FeignPlusConfigurationProperties feignPlusConfigurationProperties) {
         this.feignPlusConfigurationProperties = feignPlusConfigurationProperties;
     }
 
     @Bean
-    public ConnectionPool connectionPool(){
+    public ConnectionPool connectionPool() {
         return new ConnectionPool(feignPlusConfigurationProperties.getMaxIdleConnections(),
-                feignPlusConfigurationProperties.getKeepAliveDuration(), TimeUnit.MINUTES) ;
+                feignPlusConfigurationProperties.getKeepAliveDuration(), TimeUnit.MINUTES);
     }
 
+    @Bean(value = "feignContract")
+    @ConditionalOnExpression("'mvc'.equals('${feign.contract:mvc}')")
+    public Contract feignContract(ConversionService feignConversionService) {
+        return new SpringMvcContract(this.parameterProcessors, feignConversionService);
+    }
+
+    @Bean(value = "feignContract")
+    @ConditionalOnExpression("'feign'.equals('${feign.contract:mvc}')")
+    public Contract defaultContract() {
+        return new Contract.Default();
+    }
 
     @Bean(value = "client")
     @ConditionalOnExpression("'okhttp3'.equals('${feign.httpclient:okhttp3}')")
-    public Client okHttpClient(ConnectionPool connectionPool){
+    public Client okHttpClient(ConnectionPool connectionPool) {
         OkHttpClient delegate = new OkHttpClient().newBuilder()
                 .connectionPool(connectionPool)
                 .connectTimeout(feignPlusConfigurationProperties.getConnectTimeout(), TimeUnit.MILLISECONDS)
                 .readTimeout(feignPlusConfigurationProperties.getReadTimeout(), TimeUnit.MILLISECONDS)
                 .writeTimeout(feignPlusConfigurationProperties.getWriteTimeout(), TimeUnit.MILLISECONDS)
                 .build();
-        return new feign.okhttp.OkHttpClient(delegate) ;
+        return new feign.okhttp.OkHttpClient(delegate);
     }
 
-    @Bean(value = "client")
+    /*@Bean(value = "client")
     @ConditionalOnExpression("'http2Client'.equals('${feign.httpclient:okhttp3}')")
     public Client client(){
         HttpClient httpClient = HttpClient.newBuilder()
@@ -58,5 +77,5 @@ public class FeignPlusAutoConfiguration {
                 .connectTimeout(Duration.ofMillis(feignPlusConfigurationProperties.getConnectTimeout()))
                 .build();
         return new Http2Client(httpClient) ;
-    }
+    }*/
 }

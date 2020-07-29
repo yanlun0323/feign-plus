@@ -1,9 +1,6 @@
 package top.crossoverjie.feign.plus.factory;
 
-import feign.Client;
-import feign.Feign;
-import feign.Request;
-import feign.Retryer;
+import feign.*;
 import feign.gson.GsonDecoder;
 import feign.gson.GsonEncoder;
 import org.springframework.beans.BeansException;
@@ -25,31 +22,38 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 public class FeignPlusBeanFactory<T> implements FactoryBean<T>, ApplicationContextAware {
 
 
-    private ApplicationContext applicationContext;
+    private ApplicationContext context;
 
-    private Class<T> proxyInterface ;
+    private Class<T> proxyInterface;
 
-    private String url ;
+    private String url;
 
 
     @Override
     public T getObject() throws Exception {
-        FeignPlusConfigurationProperties conf = applicationContext.getBean(FeignPlusConfigurationProperties.class) ;
-        Client client ;
+        FeignPlusConfigurationProperties conf = this.context.getBean(FeignPlusConfigurationProperties.class);
+        Client client;
         try {
-            client = applicationContext.getBean("client", Client.class) ;
-        }catch (NoSuchBeanDefinitionException e){
-            throw new NullPointerException("Without one of [okhttp3, Http2Client] client.") ;
+            client = this.context.getBean("client", Client.class);
+        } catch (NoSuchBeanDefinitionException e) {
+            throw new NullPointerException("Without one of [okhttp3, Http2Client] client.");
         }
         T target = Feign.builder()
                 .client(client)
+                // .addCapability(new SpringMvcContract(this.parameterProcessors, feignConversionService))
                 .encoder(new GsonEncoder())
                 .decoder(new GsonDecoder())
+                .contract(this.get("feignContract", Contract.class))
                 .retryer(new Retryer.Default(100, SECONDS.toMillis(1), 0))
-                .options(new Request.Options(conf.getConnectTimeout(),conf.getReadTimeout(), true))
+                .options(new Request.Options(conf.getConnectTimeout(), conf.getReadTimeout(), true))
                 .target(proxyInterface, url);
 
         return target;
+    }
+
+
+    protected <T> T get(String name, Class<T> type) {
+        return context.getBean(name, type);
     }
 
     @Override
@@ -64,7 +68,7 @@ public class FeignPlusBeanFactory<T> implements FactoryBean<T>, ApplicationConte
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
-        this.applicationContext = applicationContext ;
+        this.context = applicationContext;
     }
 
     public Class<T> getProxyInterface() {
