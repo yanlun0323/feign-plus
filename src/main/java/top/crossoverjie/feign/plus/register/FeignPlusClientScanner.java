@@ -7,13 +7,10 @@ import org.springframework.beans.factory.support.GenericBeanDefinition;
 import org.springframework.context.annotation.ClassPathBeanDefinitionScanner;
 import org.springframework.context.annotation.ScannedGenericBeanDefinition;
 import org.springframework.core.annotation.MergedAnnotation;
-import org.springframework.core.type.classreading.MetadataReader;
-import org.springframework.core.type.classreading.MetadataReaderFactory;
-import org.springframework.core.type.filter.TypeFilter;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.web.bind.annotation.RequestMapping;
 import top.crossoverjie.feign.plus.factory.FeignPlusBeanFactory;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Set;
 
@@ -32,21 +29,16 @@ public class FeignPlusClientScanner extends ClassPathBeanDefinitionScanner {
 
     public void registerFilters() {
         // include all interfaces
-        addIncludeFilter(new TypeFilter() {
-            @Override
-            public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory) throws IOException {
-                return true;
-            }
-        });
+        addIncludeFilter((metadataReader, metadataReaderFactory) -> true);
+
+        // 指定过滤的AnnotationType，提高效率
+        addIncludeFilter(new AnnotationTypeFilter(FeignPlusClient.class));
 
 
         // exclude package-info.java
-        addExcludeFilter(new TypeFilter() {
-            @Override
-            public boolean match(MetadataReader metadataReader, MetadataReaderFactory metadataReaderFactory) throws IOException {
-                String className = metadataReader.getClassMetadata().getClassName();
-                return className.endsWith("package-info");
-            }
+        addExcludeFilter((metadataReader, metadataReaderFactory) -> {
+            String className = metadataReader.getClassMetadata().getClassName();
+            return className.endsWith("package-info");
         });
     }
 
@@ -64,8 +56,11 @@ public class FeignPlusClientScanner extends ClassPathBeanDefinitionScanner {
         GenericBeanDefinition definition;
         for (BeanDefinitionHolder holder : beanDefinitions) {
             definition = (GenericBeanDefinition) holder.getBeanDefinition();
-            MergedAnnotation<FeignPlusClient> feignPlus = ((ScannedGenericBeanDefinition) definition).getMetadata().getAnnotations().get(FeignPlusClient.class);
-            MergedAnnotation<RequestMapping> requestMapping = ((ScannedGenericBeanDefinition) definition).getMetadata().getAnnotations().get(RequestMapping.class);
+
+            MergedAnnotation<FeignPlusClient> feignPlus = ((ScannedGenericBeanDefinition) definition)
+                    .getMetadata().getAnnotations().get(FeignPlusClient.class);
+            MergedAnnotation<RequestMapping> requestMapping = ((ScannedGenericBeanDefinition) definition)
+                    .getMetadata().getAnnotations().get(RequestMapping.class);
 
 
             String beanClassName = definition.getBeanClassName();
@@ -80,7 +75,8 @@ public class FeignPlusClientScanner extends ClassPathBeanDefinitionScanner {
         return beanDefinitions;
     }
 
-    private String buildUrl(MergedAnnotation<FeignPlusClient> feignPlus, MergedAnnotation<RequestMapping> requestMapping) {
+    private String buildUrl(MergedAnnotation<FeignPlusClient> feignPlus
+            , MergedAnnotation<RequestMapping> requestMapping) {
         String url = "";
         if (feignPlus.isPresent()) {
             url = feignPlus.getString("url");
